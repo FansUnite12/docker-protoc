@@ -1,5 +1,5 @@
 # Fansunite addition
-+ We have added support to generate grpc stubs and services for elixir as well!f
++ We have added support to generate grpc stubs and services for elixir as well!!
 
 # Protocol Buffer Compiler Containers
 
