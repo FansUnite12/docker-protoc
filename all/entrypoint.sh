@@ -24,9 +24,10 @@ GEN_DOCS=false
 DOCS_FORMAT="html,index.html"
 LINT=false
 LINT_CHECKS=""
-SUPPORTED_LANGUAGES=("go" "ruby" "csharp" "java" "python" "objc" "gogo" "php" "node")
+SUPPORTED_LANGUAGES=("go" "ruby" "csharp" "java" "python" "objc" "gogo" "php" "node", "elixir")
 EXTRA_INCLUDES=""
 OUT_DIR=""
+PATH="/opt/app/.mix/escripts:$PATH"
 
 while test $# -gt 0; do
     case "$1" in
@@ -171,6 +172,9 @@ plugins=grpc+embedded\
         ;;
     "java")
         GEN_STRING="--grpc_out=$OUT_DIR --${GEN_LANG}_out=$OUT_DIR --plugin=protoc-gen-grpc=`which protoc-gen-grpc-java`"
+        ;;
+    "elixir")
+        GEN_STRING="--elixir_out=plugins=grpc:$OUT_DIR --plugin=protoc-gen-grpc=`which protoc-gen-elixir`"
         ;;
     "node")
         GEN_STRING="--grpc_out=$OUT_DIR --js_out=import_style=commonjs,binary:$OUT_DIR --plugin=protoc-gen-grpc=`which grpc_${PLUGIN_LANG}_plugin`"
