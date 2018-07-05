@@ -1,3 +1,6 @@
+# Fansunite addition
++ We have added support to generate grpc stubs and services for elixir as well!f
+
 # Protocol Buffer Compiler Containers
 
 This repository contains the Dockerfile for generating gRPC and protobuf code
@@ -17,7 +20,7 @@ If you're having trouble, see [Docker troubleshooting](#docker-troubleshooting) 
 Pull the container:
 
 ```sh
-$ docker pull namely/protoc-all:1.11
+$ docker pull fansunite/protoc-all:1.0.0
 ```
 
 After that, travel to the directory that contains your `.proto` definition
@@ -28,12 +31,12 @@ So if you have a directory: `~/my_project/protobufs/` that has:
 
 ```sh
 $ cd ~/my_project/protobufs
-$ docker run -v `pwd`:/defs namely/protoc-all:1.11 -f myproto.proto -l ruby #or go, csharp, etc
+$ docker run -v `pwd`:/defs fansunite/protoc-all:1.0.0 -f myproto.proto -l elixir #or go, csharp, etc
 ```
 
 ```powershell
 PS> cd ~/my_project/protobufs
-PS> docker run -v ${pwd}:/defs namely/protoc-all:1.11 -f myproto.proto -l ruby #or go, csharp, etc
+PS> docker run -v ${pwd}:/defs fansunite/protoc-all:1.0.0 -f myproto.proto -l elixir #or go, csharp, etc
 ```
 
 The container automatically puts the compiled files into a `gen` directory with
@@ -57,144 +60,8 @@ input. To remove the `protorepo` you need to add an include and change the
 import:
 
 ```
-$ docker run ... namely/protoc-all:1.11 -i protorepo -f catalog/catalog.proto -l go
+$ docker run ... fansunite/protoc-all:1.0.0 -i protorepo -f catalog/catalog.proto -l go
 # instead of
-$ docker run ... namely/protoc-all:1.11 -f protorepo/catalog/catalog.proto -l go
+$ docker run ... fansunite/protoc-all:1.0.0 -f protorepo/catalog/catalog.proto -l go
 # which will generate files in a `protorepo` directory.
 ```
-
-## gRPC Gateway (Experimental)
-
-This repo also provides a docker images `namely/gen-grpc-gateway` that
-generates a [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) server.
-By annotating your proto (see the grpc-gateway documentation), you can generate a
-server that acts as an HTTP server, and a gRPC client to your gRPC service.
-
-Generate a gRPC Gateway docker project with
-
-```
-docker run -v `pwd`:/defs namely/gen-grpc-gateway -f path/to/your/proto.proto -s Service
-```
-
-where `Service` is the name of your gRPC service defined in the proto. This will create a
-folder with a simple go server.
-By default, this goes in the `gen/grpc-gateway` folder. You can then build the contents of this
-folder into an actual runnable grpc-gateway server.
-
-Build your gRPC Gateway server with
-
-```
-docker build -t my-grpc-gateway gen/grpc-gateway/
-```
-
-_NOTE_: If your service does not contain any `(google.api.http)` annotations, this build will
-fail with an error `...HandlerFromEndpoint is undefined`. You need to have at least one rpc
-method annotated to build a gRPC Gateway.
-
-Run this image with
-
-```
-docker run my-grpc-gateway --backend=grpc-service:50051
-```
-
-where `--backend` refers to your actual gRPC server's address. The gRPC gateway
-listens on port 80 for HTTP traffic.
-
-### Configuring grpc-gateway
-
-The gateway is configured using [spf13/viper](https://github.com/spf13/viper), see [gwy/templates/config.yaml.tmpl](https://github.com/namely/docker-protoc/blob/master/gwy/templates/config.yaml.tmpl) for configuration options.
-
-To configure your gateway to run under a prefix, set proxy.api-prefix to that prefix. For example, if you have `(google.api.http) = '/foo/bar'`, and set `proxy.api-prefix` to `/api/'`, your gateway will listen to requests on `'/api/foo/bar'`.
-
-See [gwy/test.sh](https://github.com/namely/docker-protoc/blob/master/gwy/test.sh) for an example of how to set the prefix with an environment variable.
-
-### HTTP Headers
-
-The gateway will turn any HTTP headers that it receives into gRPC metadata. Any
-[permanent HTTP headers](https://github.com/namely/docker-protoc/blob/2e7f0c921984c9d9fc7e42e6a7b9474292f11751/gwy/templates/main.go.tmpl#L61)
-will be prefixed with 'grpcgateway-' in the metadata, so that your server receives both
-the HTTP client to gateway headers, as well as the gateway to gRPC server headers.
-
-Any headers starting with 'Grpc-' will be prefixed with an 'X-', this is because 'grpc-' is a reserved metadata prefix.
-
-All other headers will be converted to metadata as is.
-
-### CORS Configuration.
-
-You can configure [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your gateway through the
-configuration. This will allow your gateway to receive requests from different origins.
-
-There are four values:
-
-- `cors.allow-origin`: Value to set for Access-Control-Allow-Origin header.
-- `cors.allow-credentials`: Value to set for Access-Control-Allow-Credentials header.
-- `cors.allow-methods`: Value to set for Access-Control-Allow-Methods header.
-- `cors.allow-headers`: Value to set for Access-Control-Allow-Headers header.
-
-For CORS, you will want to configure your `cors.allow-methods` to be the HTTP verbs set in your proto (i.e. `GET`, `PUT`, etc.), as well as `OPTIONS`, so that your service can handle the [preflight request](https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request).
-
-If you are not using CORS, you can leave these configuration values at their default, and your gateway will not accept CORS requests.
-
-
-## grpc_cli
-
-This repo also contains a Dockerfile for building a grpc_cli.
-
-Run it with
-
-```sh
-docker run -v `pwd`:/defs --rm -it namely/grpc-cli call docker.for.mac.localhost:50051 \\
-   LinkShortener.ResolveShortLink "short_link:'asdf'" --protofiles=link_shortener.proto
-```
-
-You can pass multiple files to --protofiles by separating them with commas, for example
-`--protofiles=link_shortener.proto,foo/bar/baz.proto,biz.proto`. All of the protofiles
-must be relative to pwd, since pwd is mounted into the container.
-
-See the [grpc_cli documentation](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md)
-for more information. You may find it useful to bind this to an alias:
-
-```sh
-alias grpc_cli='docker run -v `pwd`:/defs --rm -it namely/grpc-cli'
-```
-
-Note the use of single quotes in the alias, which avoids expanding the `pwd` parameter when the alias
-is created.
-
-Now you can call it with
-
-```sh
-grpc_cli call docker.for.mac.localhost:50051 LinkShortener.ResolveShortLink "short_link:'asdf'" --protofiles=link_shortener.proto
-```
-
-## Contributing
-
-If you make changes, or add a container for another language compiler, this repo
-has simple scripts that can build projects. You can run the following within the
-all/ folder:
-
-```sh
-$ make build
-```
-
-This will build all of the known containers.
-
-```sh
-$ make test
-```
-
-This will run tests that containers can build for each language.
-
-```sh
-$ make push
-```
-
-This will build and push the containers to the Namely registry located on
-[DockerHub](https://hub.docker.com/u/namely/). You must be authorized to push to
-this repo.
-
-## Docker Troubleshooting
-
-Docker must be configured to use Linux containers.
-
-If on Windows, you must have your C: drive shared with Docker. Open the Docker settings (right-click Docker icon in notification area) and pick the Shared Drives tab. Ensure C is listed and the box is checked. If you are still experiencing trouble, click "Reset credentials..." on that tab and re-enter your local Windows username and password.
